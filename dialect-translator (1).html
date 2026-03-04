@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dialect — Regional Language Translator</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #F5F2ED; --white: #FFFFFF; --ink: #3D3530; --muted: #9A9088;
+    --border: #E0DAD4; --mid: #C8C0B4; --cmp-bg: #FDFCFA; --inp-bg: #F5F2ED;
+    --serif: 'Cormorant Garamond', Georgia, serif;
+    --sans: 'DM Sans', sans-serif;
+    --shadow: 0 2px 24px rgba(61,53,48,.04);
+  }
+  body.dark {
+    --bg: #1A1714; --white: #242120; --ink: #E8E2DA; --muted: #7A7268;
+    --border: #2E2A27; --mid: #3D3830; --cmp-bg: #1E1C19; --inp-bg: #1A1714;
+    --shadow: 0 2px 24px rgba(0,0,0,.3);
+  }
+
+  body { min-height:100vh; background:var(--bg); font-family:var(--serif); display:flex; flex-direction:column; align-items:center; padding:56px 24px 80px; color:var(--ink); transition:background .25s, color .25s; }
+
+  header { text-align:center; margin-bottom:48px; width:100%; max-width:960px; position:relative; display:flex; flex-direction:column; align-items:center; }
+  h1 { font-family:var(--serif); font-size:clamp(40px,6vw,56px); font-weight:300; letter-spacing:.08em; color:var(--ink); line-height:1; }
+  .sub { font-family:var(--sans); font-size:11px; letter-spacing:.22em; color:var(--muted); text-transform:uppercase; margin-top:10px; }
+
+  #dark-toggle { position:absolute; right:0; top:6px; background:transparent; border:1.5px solid var(--mid); border-radius:20px; padding:7px 14px; cursor:pointer; font-family:var(--sans); font-size:11px; font-weight:500; letter-spacing:.1em; color:var(--muted); transition:all .2s; }
+  #dark-toggle:hover { border-color:var(--ink); color:var(--ink); }
+
+  .container { width:100%; max-width:960px; display:flex; flex-direction:column; gap:20px; }
+  .panel { background:var(--white); border-radius:16px; border:1px solid var(--border); box-shadow:var(--shadow); transition:background .25s, border-color .25s; }
+  .lbl { font-family:var(--sans); font-size:10px; font-weight:500; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin-bottom:12px; }
+
+  /* API */
+  #api-panel { padding:24px 32px; }
+  .api-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  #api-input { flex:1; min-width:220px; background:var(--inp-bg); border:1.5px solid var(--mid); border-radius:8px; padding:10px 14px; font-family:var(--sans); font-size:13px; color:var(--ink); outline:none; transition:border-color .2s; }
+  #api-input:focus { border-color:var(--ink); }
+  #api-input::placeholder { color:var(--mid); }
+  .btn-save { background:var(--ink); color:var(--bg); border:none; border-radius:8px; padding:10px 20px; font-family:var(--sans); font-size:11px; font-weight:500; letter-spacing:.12em; text-transform:uppercase; cursor:pointer; transition:opacity .2s; white-space:nowrap; }
+  .btn-save:hover { opacity:.8; }
+  #api-status { font-family:var(--sans); font-size:12px; color:var(--muted); font-style:italic; }
+  #api-status.ok { color:#6a9e72; } #api-status.err { color:#b85a4a; }
+  .api-hint { font-family:var(--sans); font-size:11px; color:var(--mid); margin-top:10px; line-height:1.7; }
+  .api-hint a { color:var(--muted); }
+
+  /* Lang */
+  #lang-panel { padding:28px 32px; }
+  .lang-row { display:flex; gap:10px; flex-wrap:wrap; }
+  .lang-btn { display:flex; flex-direction:column; align-items:center; gap:5px; background:transparent; border:1.5px solid var(--mid); border-radius:10px; padding:12px 16px; cursor:pointer; transition:all .18s; min-width:68px; color:var(--ink); }
+  .lang-btn:hover { border-color:var(--ink); background:var(--inp-bg); }
+  .lang-btn.active { border-color:var(--ink); background:var(--ink); color:var(--bg); }
+  .lang-flag { font-family:var(--sans); font-size:11px; font-weight:500; letter-spacing:.12em; }
+  .lang-name { font-family:var(--serif); font-size:12px; font-weight:300; white-space:nowrap; }
+
+  /* Dialect row */
+  #dialect-panel { padding:22px 32px; display:none; align-items:center; gap:12px; flex-wrap:wrap; }
+  #dialect-panel .lbl { margin-bottom:0; white-space:nowrap; }
+  .dt-select { appearance:none; -webkit-appearance:none; background:var(--inp-bg); border:1.5px solid var(--mid); border-radius:8px; padding:9px 38px 9px 13px; font-family:var(--sans); font-size:13px; color:var(--ink); cursor:pointer; outline:none; transition:border-color .2s; min-width:260px; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239A9088' stroke-width='1.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; }
+  .dt-select:hover,.dt-select:focus { border-color:var(--ink); }
+
+  /* Register buttons */
+  .reg-group { display:flex; gap:6px; }
+  .reg-btn { background:transparent; border:1.5px solid var(--mid); border-radius:7px; padding:7px 13px; cursor:pointer; font-family:var(--sans); font-size:11px; font-weight:500; letter-spacing:.08em; color:var(--muted); transition:all .18s; white-space:nowrap; }
+  .reg-btn:hover { border-color:var(--ink); color:var(--ink); }
+  .reg-btn.active { border-color:var(--ink); background:var(--ink); color:var(--bg); }
+
+  /* Compare btn */
+  #compare-btn { display:flex; align-items:center; gap:7px; background:transparent; border:1.5px solid var(--mid); border-radius:8px; padding:8px 15px; cursor:pointer; font-family:var(--sans); font-size:11px; font-weight:500; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); transition:all .18s; margin-left:auto; }
+  #compare-btn:hover { border-color:var(--ink); color:var(--ink); }
+  #compare-btn.active { border-color:var(--ink); background:var(--ink); color:var(--bg); }
+  #compare-btn svg { width:14px; height:14px; }
+
+  /* Compare panel */
+  #cmp-panel { padding:22px 32px; display:none; align-items:center; gap:12px; flex-wrap:wrap; }
+  #cmp-panel .lbl { margin-bottom:0; white-space:nowrap; }
+  .sm-sel { appearance:none; -webkit-appearance:none; background:var(--inp-bg); border:1.5px solid var(--mid); border-radius:8px; padding:8px 34px 8px 12px; font-family:var(--sans); font-size:12px; color:var(--ink); cursor:pointer; outline:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%239A9088' stroke-width='1.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 10px center; transition:border-color .2s; }
+  .sm-sel:hover,.sm-sel:focus { border-color:var(--ink); }
+
+  /* Grid */
+  #t-grid { background:var(--white); border-radius:16px; border:1px solid var(--border); box-shadow:var(--shadow); display:grid; grid-template-columns:1fr 1px 1fr; overflow:hidden; min-height:280px; transition:background .25s; }
+  #t-grid.compare { grid-template-columns:1fr 1px 1fr 1px 1fr; }
+  .t-pane { padding:32px; }
+  .t-div { background:var(--border); width:1px; }
+  .t-div.cmp-div { background:linear-gradient(to bottom, var(--border), var(--mid), var(--border)); }
+  #cmp-pane { background:var(--cmp-bg); position:relative; display:none; padding:32px; }
+  #cmp-pane::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg, var(--mid), var(--muted)); }
+  #t-div2 { display:none; }
+
+  #input-text { width:100%; border:none; background:transparent; resize:none; outline:none; font-family:var(--serif); font-size:19px; font-weight:300; line-height:1.75; color:var(--ink); min-height:180px; margin-top:4px; }
+  #input-text::placeholder { color:var(--mid); font-style:italic; }
+
+  .out-head { display:flex; align-items:center; gap:10px; margin-bottom:4px; }
+  .out-head .lbl { margin-bottom:0; }
+  .spinner { width:14px; height:14px; border:1.5px solid var(--mid); border-top-color:var(--ink); border-radius:50%; animation:spin .7s linear infinite; display:none; }
+  .spinner.on { display:inline-block; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  .out-txt { font-family:var(--serif); font-size:19px; font-weight:400; line-height:1.75; color:var(--ink); min-height:180px; white-space:pre-wrap; margin-top:4px; }
+  .out-txt.muted { color:var(--mid); font-style:italic; font-weight:300; }
+  .out-txt.err { color:#b85a4a; font-style:italic; font-size:15px; }
+  .pronun { font-family:var(--sans); font-size:12px; font-weight:300; color:var(--muted); letter-spacing:.03em; margin-top:12px; font-style:italic; border-top:1px solid var(--border); padding-top:12px; line-height:1.5; display:none; }
+  .pronun.on { display:block; }
+
+  .footer { text-align:center; font-family:var(--sans); font-size:11px; font-weight:300; letter-spacing:.1em; color:var(--mid); margin-top:6px; }
+
+  @media(max-width:700px) {
+    body { padding:36px 14px 60px; }
+    #t-grid, #t-grid.compare { grid-template-columns:1fr; }
+    .t-div { width:auto; height:1px; }
+    #dialect-panel, #api-panel, #lang-panel, #cmp-panel { padding:18px 20px; }
+    .t-pane, #cmp-pane { padding:22px; }
+    #compare-btn { margin-left:0; }
+    .reg-group { flex-wrap:wrap; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Dialect</h1>
+  <p class="sub">Regional Language Translator</p>
+  <button id="dark-toggle" onclick="toggleDark()">☾ Dark</button>
+</header>
+
+<div class="container">
+
+  <div class="panel" id="api-panel">
+    <div class="lbl">Anthropic API Key</div>
+    <div class="api-row">
+      <input type="password" id="api-input" placeholder="sk-ant-api03-..." autocomplete="off" spellcheck="false">
+      <button class="btn-save" onclick="saveKey()">Save Key</button>
+      <span id="api-status"></span>
+    </div>
+    <p class="api-hint">Saved only in your browser, sent directly to Anthropic. Get a key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></p>
+  </div>
+
+  <div class="panel" id="lang-panel">
+    <div class="lbl">Choose Language</div>
+    <div class="lang-row" id="lang-btns"></div>
+  </div>
+
+  <div class="panel" id="dialect-panel">
+    <div class="lbl">Dialect</div>
+    <select class="dt-select" id="dialect-sel"><option value="">— choose a dialect —</option></select>
+    <div class="reg-group" id="reg-group"></div>
+    <button id="compare-btn" onclick="toggleCompare()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="18" rx="1.5"/></svg>
+      Compare
+    </button>
+  </div>
+
+  <div class="panel" id="cmp-panel-wrap" style="display:none;">
+    <div id="cmp-panel" style="display:flex;">
+      <div class="lbl">Compare with</div>
+      <select class="sm-sel" id="cmp-lang-sel" onchange="onCmpLang()">
+        <option value="">Language…</option>
+      </select>
+      <select class="sm-sel" id="cmp-dialect-sel" onchange="onCmpDialect()" style="display:none;min-width:260px;">
+        <option value="">Dialect…</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="t-grid">
+    <div class="t-pane">
+      <div class="lbl">Your Text</div>
+      <textarea id="input-text" rows="8" placeholder="Begin typing to translate…" spellcheck="false"></textarea>
+    </div>
+    <div class="t-div" id="t-div1"></div>
+    <div class="t-pane">
+      <div class="out-head"><div class="lbl" id="main-lbl">Translation</div><div class="spinner" id="main-spin"></div></div>
+      <div class="out-txt muted" id="main-out">Select a language above…</div>
+      <div class="pronun" id="main-pron"></div>
+    </div>
+    <div class="t-div cmp-div" id="t-div2"></div>
+    <div id="cmp-pane">
+      <div class="out-head"><div class="lbl" id="cmp-lbl">Compare</div><div class="spinner" id="cmp-spin"></div></div>
+      <div class="out-txt muted" id="cmp-out">Select a language to compare…</div>
+      <div class="pronun" id="cmp-pron"></div>
+    </div>
+  </div>
+
+  <p class="footer">Translates as you write · Powered by Claude AI</p>
+</div>
+
+<script>
+const LANGS=[
+  {code:"en",label:"English",flag:"EN"},
+  {code:"fr",label:"French",flag:"FR"},
+  {code:"it",label:"Italian",flag:"IT"},
+  {code:"de",label:"German",flag:"DE"},
+  {code:"pt",label:"Portuguese",flag:"PT"},
+  {code:"es",label:"Spanish",flag:"ES"},
+  {code:"zh",label:"Chinese",flag:"ZH"},
+  {code:"ja",label:"Japanese",flag:"JA"},
+  {code:"ru",label:"Russian",flag:"RU"},
+  {code:"no",label:"Norwegian",flag:"NO"},
+];
+const DIALECTS={
+  en:[
+    {id:"standard",label:"Standard / RP British (United Kingdom)"},
+    {id:"scottish",label:"Scottish (United Kingdom)"},
+    {id:"cockney",label:"Cockney (United Kingdom — London)"},
+    {id:"geordie",label:"Geordie (United Kingdom — Newcastle)"},
+    {id:"scouse",label:"Scouse (United Kingdom — Liverpool)"},
+    {id:"yorkshire",label:"Yorkshire (United Kingdom — Yorkshire)"},
+    {id:"welsh_en",label:"Welsh English (United Kingdom — Wales)"},
+    {id:"irish",label:"Irish English (Ireland)"},
+    {id:"ulster",label:"Ulster Scots (United Kingdom — Northern Ireland)"},
+    {id:"australian",label:"Australian English (Australia)"},
+    {id:"new_zealand",label:"New Zealand English (New Zealand)"},
+    {id:"southern_us",label:"Southern American (United States — South)"},
+    {id:"new_york",label:"New York (United States — New York)"},
+    {id:"boston",label:"Boston Brahmin (United States — Massachusetts)"},
+    {id:"appalachian",label:"Appalachian (United States — Appalachia)"},
+    {id:"aave",label:"African American Vernacular (United States)"},
+    {id:"chicano",label:"Chicano English (United States — Southwest)"},
+    {id:"canadian",label:"Canadian English (Canada)"},
+    {id:"indian_en",label:"Indian English (India)"},
+    {id:"singaporean",label:"Singlish (Singapore)"},
+    {id:"nigerian_en",label:"Nigerian Pidgin English (Nigeria)"},
+    {id:"south_african_en",label:"South African English (South Africa)"},
+    {id:"jamaican",label:"Jamaican Patois (Jamaica)"},
+    {id:"trinidadian",label:"Trinidadian English (Trinidad & Tobago)"},
+    {id:"filipino_en",label:"Philippine English (Philippines)"},
+  ],
+  fr:[
+    {id:"standard",label:"Standard Parisian (France — Paris)"},
+    {id:"marseillais",label:"Marseillais (France — Marseille)"},
+    {id:"lyonnais",label:"Lyonnais (France — Lyon)"},
+    {id:"alsatian",label:"Alsatian French (France — Alsace)"},
+    {id:"breton_fr",label:"Breton French (France — Brittany)"},
+    {id:"quebecois",label:"Québécois (Canada — Quebec)"},
+    {id:"acadian",label:"Acadian French (Canada — Atlantic)"},
+    {id:"belgian",label:"Belgian French (Belgium)"},
+    {id:"swiss_fr",label:"Swiss French (Switzerland)"},
+    {id:"congolese",label:"Congolese French (Democratic Republic of Congo)"},
+    {id:"ivorian",label:"Ivorian French (Côte d'Ivoire)"},
+    {id:"senegalese",label:"Senegalese French (Senegal)"},
+    {id:"cameroonian",label:"Cameroonian French (Cameroon)"},
+    {id:"algerian_fr",label:"Algerian French (Algeria)"},
+    {id:"moroccan_fr",label:"Moroccan French (Morocco)"},
+    {id:"haitian",label:"Haitian Creole French (Haiti)"},
+    {id:"antillean",label:"Antillean Creole French (Martinique & Guadeloupe)"},
+    {id:"malagasy_fr",label:"Malagasy French (Madagascar)"},
+    {id:"vietnamese_fr",label:"Vietnamese French (Vietnam)"},
+  ],
+  it:[
+    {id:"standard",label:"Standard Florentine (Italy — Tuscany)"},
+    {id:"roman",label:"Romanesco (Italy — Rome)"},
+    {id:"neapolitan",label:"Neapolitan (Italy — Naples)"},
+    {id:"sicilian",label:"Sicilian (Italy — Sicily)"},
+    {id:"venetian",label:"Venetian (Italy — Venice)"},
+    {id:"milanese",label:"Milanese / Lombard (Italy — Milan)"},
+    {id:"sardinian",label:"Sardinian (Italy — Sardinia)"},
+    {id:"piedmontese",label:"Piedmontese (Italy — Turin)"},
+    {id:"calabrian",label:"Calabrian (Italy — Calabria)"},
+  ],
+  de:[
+    {id:"standard",label:"Hochdeutsch / Standard (Germany)"},
+    {id:"bavarian",label:"Bavarian (Germany — Bavaria)"},
+    {id:"berlin",label:"Berlinerisch (Germany — Berlin)"},
+    {id:"saxon",label:"Saxon / Sächsisch (Germany — Saxony)"},
+    {id:"cologne",label:"Kölsch (Germany — Cologne)"},
+    {id:"hamburger",label:"Hamburger Platt (Germany — Hamburg)"},
+    {id:"swabian",label:"Swabian (Germany — Baden-Württemberg)"},
+    {id:"swiss_de",label:"Schweizerdeutsch (Switzerland)"},
+    {id:"austrian",label:"Austrian German (Austria)"},
+    {id:"alsatian_de",label:"Alsatian German (France — Alsace)"},
+  ],
+  pt:[
+    {id:"standard",label:"Standard European (Portugal — Lisbon)"},
+    {id:"algarvian",label:"Algarvian (Portugal — Algarve)"},
+    {id:"carioca",label:"Carioca (Brazil — Rio de Janeiro)"},
+    {id:"paulistano",label:"Paulistano (Brazil — São Paulo)"},
+    {id:"nordestino",label:"Nordestino (Brazil — Northeast)"},
+    {id:"mineiro",label:"Mineiro (Brazil — Minas Gerais)"},
+    {id:"gaucho",label:"Gaúcho (Brazil — Rio Grande do Sul)"},
+    {id:"angolan",label:"Angolan Portuguese (Angola)"},
+    {id:"mozambican",label:"Mozambican Portuguese (Mozambique)"},
+    {id:"capeverdean",label:"Cape Verdean Creole (Cape Verde)"},
+  ],
+  es:[
+    {id:"standard",label:"Standard Castilian (Spain — Castile)"},
+    {id:"andaluz",label:"Andalusian (Spain — Andalusia)"},
+    {id:"canarian",label:"Canarian (Spain — Canary Islands)"},
+    {id:"catalan_es",label:"Valencian Spanish (Spain — Valencia)"},
+    {id:"rioplatense",label:"Rioplatense (Argentina & Uruguay — Buenos Aires)"},
+    {id:"chilean",label:"Chilean (Chile)"},
+    {id:"mexican",label:"Mexican (Mexico)"},
+    {id:"caribbean",label:"Caribbean (Cuba, Puerto Rico, Dominican Republic)"},
+    {id:"colombian",label:"Bogotano (Colombia — Bogotá)"},
+    {id:"andean",label:"Andean (Peru, Bolivia, Ecuador)"},
+    {id:"central_am",label:"Central American (Guatemala, Honduras, Nicaragua)"},
+    {id:"us_spanish",label:"US Latino Spanish (United States)"},
+    {id:"equatorial",label:"Equatorial Guinean (Equatorial Guinea)"},
+  ],
+  zh:[
+    {id:"standard",label:"Standard Mandarin / Pǔtōnghuà (China — Beijing)"},
+    {id:"sichuanese",label:"Sichuanese Mandarin (China — Sichuan)"},
+    {id:"northeastern",label:"Northeastern / Dongbei (China — Manchuria)"},
+    {id:"shanghainese",label:"Shanghainese / Wu (China — Shanghai)"},
+    {id:"cantonese",label:"Cantonese / Yue (China — Guangdong & Hong Kong)"},
+    {id:"hokkien",label:"Hokkien / Min Nan (China — Fujian & Taiwan)"},
+    {id:"hakka",label:"Hakka (China — Guangdong, Taiwan, Southeast Asia)"},
+    {id:"taiwanese",label:"Taiwanese Mandarin (Taiwan)"},
+    {id:"singaporean_zh",label:"Singaporean Mandarin (Singapore)"},
+  ],
+  ja:[
+    {id:"standard",label:"Standard / Hyōjungo (Japan — Tokyo)"},
+    {id:"kansai",label:"Kansai-ben / Osaka-ben (Japan — Osaka & Kansai)"},
+    {id:"kyoto",label:"Kyoto-ben (Japan — Kyoto)"},
+    {id:"hakata",label:"Hakata-ben (Japan — Fukuoka)"},
+    {id:"hiroshima",label:"Hiroshima-ben (Japan — Hiroshima)"},
+    {id:"tohoku",label:"Tohoku-ben (Japan — Northeast Honshu)"},
+    {id:"okinawan",label:"Okinawan Japanese (Japan — Okinawa)"},
+    {id:"nagoya",label:"Nagoya-ben / Chukyo (Japan — Nagoya)"},
+    {id:"sapporo",label:"Hokkaido-ben (Japan — Sapporo & Hokkaido)"},
+  ],
+  ru:[
+    {id:"standard",label:"Standard Moscow Russian (Russia — Moscow)"},
+    {id:"st_pete",label:"St. Petersburg Russian (Russia — St. Petersburg)"},
+    {id:"siberian",label:"Siberian Russian (Russia — Siberia)"},
+    {id:"southern_ru",label:"Southern Russian (Russia — Krasnodar)"},
+    {id:"ural",label:"Ural Russian (Russia — Ural region)"},
+    {id:"ukrainian_ru",label:"Ukrainian Russian (Ukraine)"},
+    {id:"belarusian_ru",label:"Belarusian Russian (Belarus)"},
+    {id:"kazakh_ru",label:"Kazakhstani Russian (Kazakhstan)"},
+    {id:"mat",label:"Russian Mat / Street Slang (Russia — Urban)"},
+  ],
+  no:[
+    {id:"standard",label:"Bokmål Standard (Norway — Oslo)"},
+    {id:"nynorsk",label:"Nynorsk (Norway — Western regions)"},
+    {id:"bergen",label:"Bergensk (Norway — Bergen)"},
+    {id:"trondheim",label:"Trøndersk (Norway — Trondheim)"},
+    {id:"northern_no",label:"Northern Norwegian / Nordnorsk (Norway — Tromsø)"},
+    {id:"stavanger",label:"Stavanger / Rogaland (Norway — Stavanger)"},
+    {id:"oslo_east",label:"East Oslo / Kebabnorsk (Norway — Oslo East)"},
+  ],
+};
+const REGISTERS=[
+  {id:"standard",label:"Standard"},
+  {id:"formal",label:"Formal"},
+  {id:"casual",label:"Casual"},
+  {id:"slang",label:"Casual Slang"},
+];
+
+let selLang=null, selDialect=null, selReg="standard";
+let cmpLang=null, cmpDialect=null;
+let compareOpen=false, isDark=false;
+let mainTimer=null, cmpTimer=null, mainAbort=null, cmpAbort=null;
+
+// Init
+const savedKey=localStorage.getItem('dialect_key');
+if(savedKey){document.getElementById('api-input').value=savedKey;setStatus('Key loaded ✓','ok');}
+const savedDark=localStorage.getItem('dialect_dark');
+if(savedDark==='1') { document.body.classList.add('dark'); isDark=true; document.getElementById('dark-toggle').textContent='☀ Light'; }
+
+// Build lang buttons
+LANGS.forEach(l=>{
+  const b=document.createElement('button');
+  b.className='lang-btn'; b.dataset.code=l.code;
+  b.innerHTML=`<span class="lang-flag">${l.flag}</span><span class="lang-name">${l.label}</span>`;
+  b.onclick=()=>selectLang(l.code);
+  document.getElementById('lang-btns').appendChild(b);
+});
+
+// Build register buttons
+REGISTERS.forEach(r=>{
+  const b=document.createElement('button');
+  b.className='reg-btn'+(r.id==='standard'?' active':'');
+  b.dataset.reg=r.id; b.textContent=r.label;
+  b.onclick=()=>selectReg(r.id);
+  document.getElementById('reg-group').appendChild(b);
+});
+
+// Populate compare lang
+LANGS.forEach(l=>{
+  const o=document.createElement('option'); o.value=l.code; o.textContent=l.label;
+  document.getElementById('cmp-lang-sel').appendChild(o);
+});
+
+function toggleDark(){
+  isDark=!isDark;
+  document.body.classList.toggle('dark',isDark);
+  document.getElementById('dark-toggle').textContent=isDark?'☀ Light':'☾ Dark';
+  localStorage.setItem('dialect_dark',isDark?'1':'0');
+}
+function saveKey(){
+  const v=document.getElementById('api-input').value.trim();
+  if(!v.startsWith('sk-')){setStatus('Invalid key format','err');return;}
+  localStorage.setItem('dialect_key',v); setStatus('Saved ✓','ok');
+}
+function setStatus(msg,cls){const el=document.getElementById('api-status');el.textContent=msg;el.className=cls;}
+function getKey(){return localStorage.getItem('dialect_key')||document.getElementById('api-input').value.trim();}
+
+function selectLang(code){
+  selLang=code; selDialect=null;
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b.dataset.code===code));
+  const sel=document.getElementById('dialect-sel');
+  sel.innerHTML='<option value="">— choose a dialect —</option>';
+  DIALECTS[code].forEach(d=>{const o=document.createElement('option');o.value=d.id;o.textContent=d.label;sel.appendChild(o);});
+  document.getElementById('dialect-panel').style.display='flex';
+  setMain('Choose a dialect…',true); clearPron('main');
+}
+function selectReg(id){
+  selReg=id;
+  document.querySelectorAll('.reg-btn').forEach(b=>b.classList.toggle('active',b.dataset.reg===id));
+  trigger(); triggerCmp();
+}
+
+document.getElementById('dialect-sel').addEventListener('change',function(){
+  selDialect=this.value||null;
+  if(selDialect){
+    document.getElementById('main-lbl').textContent=DIALECTS[selLang].find(d=>d.id===selDialect)?.label||'Translation';
+    trigger();
+  }
+});
+document.getElementById('input-text').addEventListener('input',()=>{trigger();triggerCmp();});
+
+function trigger(){
+  clearTimeout(mainTimer);
+  const txt=document.getElementById('input-text').value.trim();
+  if(!txt||!selLang||!selDialect){setMain(!selLang?'Select a language above…':!selDialect?'Choose a dialect…':'Start typing…',true);clearPron('main');return;}
+  mainTimer=setTimeout(()=>doTranslate(txt,selLang,selDialect,false),700);
+}
+function triggerCmp(){
+  clearTimeout(cmpTimer);
+  const txt=document.getElementById('input-text').value.trim();
+  if(!txt||!cmpLang||!cmpDialect||!compareOpen) return;
+  cmpTimer=setTimeout(()=>doTranslate(txt,cmpLang,cmpDialect,true),700);
+}
+
+function buildPrompt(text,lang,dialect){
+  const langName=LANGS.find(l=>l.code===lang)?.label;
+  const dialectName=DIALECTS[lang]?.find(d=>d.id===dialect)?.label;
+  const regLabel=REGISTERS.find(r=>r.id===selReg)?.label||'Standard';
+  const regNote=selReg==='formal'?'Use formal, elevated, polished language appropriate for official or professional contexts.'
+    :selReg==='casual'?'Use relaxed, everyday conversational language as spoken between friends.'
+    :selReg==='slang'?'Use heavy local slang, colloquialisms, and informal expressions. Include street vocabulary where natural.'
+    :'Use neutral, everyday standard language.';
+  return `You are a dialect translation expert. Translate the following text into ${langName}, specifically the ${dialectName} dialect/variety, in a ${regLabel} register.\n${regNote}\n- Return ONLY raw JSON (no markdown, no backticks): {"translation":"...","pronunciation":"simple phonetic guide using English sounds"}\nText: "${text}"`;
+}
+
+async function doTranslate(text,lang,dialect,isCmp){
+  const key=getKey();
+  if(!key||!key.startsWith('sk-')){isCmp?setCmp('Please enter your API key above.',false,true):setMain('Please enter your API key above.',false,true);return;}
+  const ab=new AbortController();
+  if(isCmp){if(cmpAbort)cmpAbort.abort();cmpAbort=ab;}else{if(mainAbort)mainAbort.abort();mainAbort=ab;}
+  spin(isCmp,true); clearPron(isCmp?'cmp':'main');
+  try{
+    const res=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",signal:ab.signal,
+      headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:buildPrompt(text,lang,dialect)}]})
+    });
+    const data=await res.json();
+    if(data.error)throw new Error(data.error.message||'API error');
+    const raw=(data.content||[]).map(b=>b.text||'').join('');
+    const clean=raw.replace(/```[a-z]*\n?/g,'').replace(/```/g,'').trim();
+    const match=clean.match(/\{[\s\S]*\}/);
+    const parsed=JSON.parse(match?match[0]:clean);
+    if(isCmp){setCmp(parsed.translation||'');if(parsed.pronunciation)setPron('cmp',parsed.pronunciation);}
+    else{setMain(parsed.translation||'');if(parsed.pronunciation)setPron('main',parsed.pronunciation);}
+  }catch(e){
+    if(e.name!=='AbortError'){isCmp?setCmp('Translation failed. Check your API key.',false,true):setMain('Translation failed. Check your API key.',false,true);}
+  }finally{spin(isCmp,false);}
+}
+
+function toggleCompare(){
+  compareOpen=!compareOpen;
+  document.getElementById('compare-btn').classList.toggle('active',compareOpen);
+  document.getElementById('cmp-panel-wrap').style.display=compareOpen?'block':'none';
+  document.getElementById('t-div2').style.display=compareOpen?'block':'none';
+  document.getElementById('cmp-pane').style.display=compareOpen?'block':'none';
+  document.getElementById('t-grid').classList.toggle('compare',compareOpen);
+  if(!compareOpen){cmpLang=null;cmpDialect=null;}
+}
+function onCmpLang(){
+  cmpLang=document.getElementById('cmp-lang-sel').value||null;
+  cmpDialect=null;
+  const dsel=document.getElementById('cmp-dialect-sel');
+  dsel.innerHTML='<option value="">Dialect…</option>';
+  if(cmpLang){
+    DIALECTS[cmpLang].forEach(d=>{const o=document.createElement('option');o.value=d.id;o.textContent=d.label;dsel.appendChild(o);});
+    dsel.style.display='block';
+  }else{dsel.style.display='none';}
+  setCmp('Choose a dialect…',true); clearPron('cmp');
+}
+function onCmpDialect(){
+  cmpDialect=document.getElementById('cmp-dialect-sel').value||null;
+  if(cmpDialect){
+    document.getElementById('cmp-lbl').textContent=DIALECTS[cmpLang].find(d=>d.id===cmpDialect)?.label||'Compare';
+    triggerCmp();
+  }
+}
+
+function setMain(txt,muted=false,err=false){const el=document.getElementById('main-out');el.textContent=txt;el.className='out-txt'+(muted?' muted':err?' err':'');}
+function setCmp(txt,muted=false,err=false){const el=document.getElementById('cmp-out');el.textContent=txt;el.className='out-txt'+(muted?' muted':err?' err':'');}
+function setPron(w,txt){const el=document.getElementById(w+'-pron');el.textContent='◦ '+txt;el.className='pronun on';}
+function clearPron(w){const el=document.getElementById(w+'-pron');el.textContent='';el.className='pronun';}
+function spin(isCmp,on){document.getElementById(isCmp?'cmp-spin':'main-spin').className='spinner'+(on?' on':'');}
+</script>
+</body>
+</html>
